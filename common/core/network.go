@@ -255,19 +255,19 @@ func addEndpointGatewaysFromConfig(
 			if endpointInfo.Gateway == nil {
 
 				logrus.Debugf("[cni-net] Found no ipv4 gateway")
-				
+
 				m1, _ := addr.Dst.Mask.Size()
 				m2, _ := defaultDestipv4Network.Mask.Size()
 
 				if m1 == m2 &&
 				   addr.Dst.IP.Equal(defaultDestipv4) {
 					endpointInfo.Gateway = addr.GW
-					logrus.Debugf("[cni-net] Assigned % as ipv4 gateway", endpointInfo.Gateway.String())
+					logrus.Debugf("[cni-net] Assigned %s as ipv4 gateway", endpointInfo.Gateway.String())
 				}
 			}
 		} else {
 			if endpointInfo.Gateway6 == nil {
-				
+
 				logrus.Debugf("[cni-net] Found no ipv6 gateway")
 
 				m1, _ := addr.Dst.Mask.Size()
@@ -276,7 +276,7 @@ func addEndpointGatewaysFromConfig(
 				if m1 == m2 &&
 				   addr.Dst.IP.Equal(defaultDestipv6) {
 					endpointInfo.Gateway6 = addr.GW
-					logrus.Debugf("[cni-net] Assigned % as ipv6 gateway", endpointInfo.Gateway6.String())
+					logrus.Debugf("[cni-net] Assigned %s as ipv6 gateway", endpointInfo.Gateway6.String())
 				}
 			}
 		}

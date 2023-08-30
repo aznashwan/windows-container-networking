@@ -1,9 +1,11 @@
 package main_test
 
 import (
+	"os"
+	"testing"
+
 	"github.com/Microsoft/hcsshim/hcn"
 	"github.com/Microsoft/windows-container-networking/test/utilities"
-	"testing"
 )
 
 func CreateNatTestNetwork() *hcn.HostComputeNetwork {
@@ -13,6 +15,8 @@ func CreateNatTestNetwork() *hcn.HostComputeNetwork {
 
 func TestNatCmdAdd(t *testing.T) {
 	testNetwork := CreateNatTestNetwork()
-	pt := util.MakeTestStruct(t, testNetwork, "nat", false, false, "")
+    testDualStack := (os.Getenv("TestDualStack") == "1")
+    imageToUse := os.Getenv("ImageToUse")
+	pt := util.MakeTestStruct(t, testNetwork, "nat", false, false, "", testDualStack, imageToUse)
 	pt.RunAll(t)
 }
