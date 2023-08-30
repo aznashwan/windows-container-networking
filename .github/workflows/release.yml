@@ -1,0 +1,126 @@
+on:
+  push:
+    branches:
+      - "release/**"
+    tags:
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+
+name: Release
+
+env:
+  GO_VERSION: "1.21.0"
+  BINARY_ARTEFACT_NAME: "windows-cni-binaries"
+  RELEASE_NOTEST_ARTEFACT_NAME: "windows-cni-release-notes"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check Signed Tag
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    outputs:
+      stringver: ${{ steps.contentrel.outputs.stringver }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/Microsoft/windows-container-networking
+
+      - name: Log tag signed
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          TAGCHECK=$(git tag -v ${releasever} 2>&1 >/dev/null) ||
+          echo "${TAGCHECK}" | grep -q "error" && {
+              echo "::error::tag ${releasever} is not a signed tag!"
+          } || {
+              echo "Tag ${releasever} is signed."
+          }
+        working-directory: src/github.com/Microsoft/windows-container-networking
+
+      - name: Release content
+        id: contentrel
+        run: |
+          RELEASEVER=${{ github.ref }}
+          echo "stringver=${RELEASEVER#refs/tags/v}" >> $GITHUB_OUTPUT
+          git tag -l ${RELEASEVER#refs/tags/} -n20000 | tail -n +3 | cut -c 5- >release-notes.md
+        working-directory: src/github.com/Microsoft/windows-container-networking
+
+      - name: Save release notes
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.RELEASE_NOTEST_ARTEFACT_NAME }}
+          path: src/github.com/Microsoft/windows-container-networking/release-notes.md
+
+  build:
+    name: Build Release Binaries
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Set RELEASE_VER
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          releasever=${{ github.ref }}
+          releasever="${releasever#refs/tags/}"
+          echo "RELEASE_VER=${releasever}" >> $GITHUB_ENV
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          # Intentionally use github.repository instead of Microsoft/windows-container-networking to
+          # make this action runnable on forks.
+          repository: ${{ github.repository }}
+          ref: ${{ github.ref }}
+          path: src/github.com/Microsoft/windows-container-networking
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Make
+        shell: bash
+        run: |
+          make release "VERSION=${RELEASE_VER}"
+        working-directory: src/github.com/Microsoft/windows-container-networking
+
+      - name: Save Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.BINARY_ARTEFACT_NAME }}
+          path: src/github.com/Microsoft/windows-container-networking/release/*
+
+  release:
+    name: Create CNI Binaries Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    needs: [build, check]
+    steps:
+      - name: Download builds and release notes
+        uses: actions/download-artifact@v3
+        with:
+          path: builds
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          name: windows-cni ${{ needs.check.outputs.stringver }}
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          body_path: ./builds/${{ env.RELEASE_NOTEST_ARTEFACT_NAME }}/release-notes.md
+          files: |
+            builds/${{ env.BINARY_ARTEFACT_NAME }}/*
