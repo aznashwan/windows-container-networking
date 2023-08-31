@@ -39,14 +39,18 @@ jobs:
       - name: Get release version
         id: getrelease
         run: |
-          RELEASEVER=${{ github.ref }}
-          echo "version=${RELEASEVER#refs/tags/v}" >> $GITHUB_OUTPUT
+          ref=${{ github.ref }}
+          version="${RELEASEVER#refs/tags/v}"
+          # If we can't extract the version from the tag, use the commit ID.
+          if [ "$ref" = "$version" ]; then
+            version=$(git show -s --format=%H | cut -c -12)
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
         working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Check unsigned tag
         run: |
-          releasever=${{ github.ref }}
-          releasever="${releasever#refs/tags/}"
+          releasever="${{ steps.getrelease.outputs.version }}"
           TAGCHECK=$(git tag -v ${releasever} 2>&1 >/dev/null) ||
           echo "${TAGCHECK}" | grep -q "error" && {
               echo "::warning::tag ${releasever} is not a signed tag!"
@@ -55,7 +59,7 @@ jobs:
           }
         working-directory: src/github.com/Microsoft/windows-container-networking
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -67,7 +71,7 @@ jobs:
 
       - name: Make release notes
         run: |
-          version="${{ steps.getrelease.outputs.version}}"
+          version="${{ steps.getrelease.outputs.version }}"
           git tag -l ${version#refs/tags/} -n20000 | tail -n +3 | cut -c 5- >release-notes.md
         working-directory: src/github.com/Microsoft/windows-container-networking
 
@@ -83,14 +87,38 @@ jobs:
           name: ${{ env.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
           path: src/github.com/Microsoft/windows-container-networking/release/*
 
+  test:
+    name: Run Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: ["windows-2019", "windows-2022"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.ref }}
+          path: src/github.com/Microsoft/windows-container-networking
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run tests
+        run: |
+          mingw32-make.exe test
+        working-directory: src/github.com/Microsoft/windows-container-networking
+
   release:
     name: Create CNI Binaries Release
+    needs: [build, test]
+    # NOTE: only release on pushes to release tags:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     runs-on: ubuntu-22.04
     timeout-minutes: 10
-    needs: [build]
     steps:
       - name: Download builds and release notes
         uses: actions/download-artifact@v3
