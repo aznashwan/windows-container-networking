@@ -39,14 +39,14 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Run linters
-        # TODO(aznashwan): codebase currently has linter issues
-        # to be solved in a later PR.
+        # TODO(aznashwan): codebase currently has linter issues to be solved in a later PR.
         continue-on-error: true
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.52.2
           skip-cache: true
           args: --timeout=8m
+          working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Install runhcs
         shell: bash
