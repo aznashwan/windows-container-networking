@@ -27,7 +27,7 @@ jobs:
         os: ["windows-2019", "windows-2022"]
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
         with:
           ref: ${{ github.ref }}
@@ -38,15 +38,15 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Run linters
+      - name: Lint
         # TODO(aznashwan): codebase currently has linter issues to be solved in a later PR.
         continue-on-error: true
         uses: golangci/golangci-lint-action@v3
         with:
+          working-directory: src/github.com/Microsoft/windows-container-networking
           version: v1.52.2
           skip-cache: true
           args: --timeout=8m
-          working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Install runhcs
         # TODO(aznashwan): all tests are currently disabled so omitting
@@ -60,7 +60,7 @@ jobs:
           go install ./...
         working-directory: src/github.com/Microsoft/windows-container-networking
 
-      - name: Run tests
+      - name: Test
         run: |
           mingw32-make.exe test
         working-directory: src/github.com/Microsoft/windows-container-networking
