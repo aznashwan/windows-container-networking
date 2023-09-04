@@ -95,7 +95,9 @@ jobs:
     # upstream CNI repository should be replaced with the following to
     # potentially allow contributors to enable tests on forks as well:
     # uses: "${{ github.repository }}/.github/workflows/ci.yml@${{ github.ref_name }}"
-    uses: "Microsoft/windows-container-networking/.github/workflows/ci.yml@master"
+    # uses: "Microsoft/windows-container-networking/.github/workflows/ci.yml@master"
+    # HACK(aznashwan): hack external worflow repo owner for testing purposes.
+    uses: "aznashwan/windows-container-networking/.github/workflows/ci.yml@master"
 
   release:
     name: Create CNI Binaries Release
