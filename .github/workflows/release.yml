@@ -23,7 +23,7 @@ jobs:
     outputs:
       version: ${{ steps.getrelease.outputs.version }}
       binaries_artifact: ${{ env.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
-      release_notes_artifact: ${{ env.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
+      release_notes_artifact: ${{ env.RELEASE_NOTES_ARTIFACT_NAME}}-${{ steps.getrelease.outputs.version }}
 
     steps:
       - name: Checkout code
@@ -41,7 +41,8 @@ jobs:
           if [ "$ref" = "$version" ]; then
             version=$(git show -s --format=%H | cut -c -12)
           fi
-          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Determined version: ${version}"
+          echo "version=${version}" >> $GITHUB_OUTPUT
         working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Check unsigned tag
