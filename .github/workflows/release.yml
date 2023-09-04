@@ -63,7 +63,7 @@ jobs:
       - name: Make binary release
         shell: bash
         run: |
-          make release "VERSION=${RELEASE_VER}"
+          make release "VERSION=${{ steps.getrelease.outputs.version }}"
         working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Make release notes
