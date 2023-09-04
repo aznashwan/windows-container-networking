@@ -4,21 +4,24 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      GO_VERSION:
+        type: string
+        default: '1.21.0'
   workflow_call:
+    inputs:
+      GO_VERSION:
+        type: string
+        default: '1.21.0'
   push:
     branches:
-      - main
       - master
   pull_request:
     branches:
-      - main
       - master
 
 permissions:
   contents: read
-
-env:
-  GO_VERSION: "1.21.0"
 
 jobs:
   test:
@@ -37,7 +40,7 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ inputs.GO_VERSION }}
 
       - name: Install runhcs
         shell: bash
