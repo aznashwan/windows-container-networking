@@ -49,10 +49,13 @@ jobs:
           working-directory: src/github.com/Microsoft/windows-container-networking
 
       - name: Install runhcs
+        # TODO(aznashwan): all tests are currently disabled so omitting
+        # runhcs installation for execution speed.
+        if: false
         shell: bash
         run: |
           HCSSHIM_VER=$(sed -E -n "s|\t*github.com/Microsoft/hcsshim (.*)|\1|p" go.mod)
-          git clone https://github.com/Microsoft/hcsshim -b $HCSSHIM_VER /tmp/hcsshim
+          git clone https://github.com/Microsoft/hcsshim -b "$HCSSHIM_VER" /tmp/hcsshim
           cd /tmp/hcsshim
           go install ./...
         working-directory: src/github.com/Microsoft/windows-container-networking
