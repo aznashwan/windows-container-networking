@@ -96,7 +96,7 @@ jobs:
     # uses: "Microsoft/windows-container-networking/.github/workflows/ci.yml@master"
     uses: "aznashwan/windows-container-networking/.github/workflows/ci.yml@main"
     with:
-      GO_VERSION: ${{ vars.GO_VERSION }}
+      GO_VERSION: ${{ inputs.GO_VERSION }}
 
   release:
     name: Create CNI Binaries Release
