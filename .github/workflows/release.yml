@@ -7,7 +7,7 @@ on:
 
 name: Release
 
-vars:
+env:
   GO_VERSION: "1.21.0"
   BINARY_ARTIFACT_NAME: "windows-cni-binaries"
   RELEASE_NOTES_ARTIFACT_NAME: "windows-cni-release-notes"
