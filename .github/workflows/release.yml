@@ -36,7 +36,7 @@ jobs:
         id: getrelease
         run: |
           ref=${{ github.ref }}
-          version="${RELEASEVER#refs/tags/v}"
+          version="${ref#refs/tags/v}"
           # If we can't extract the version from the tag, use the commit ID.
           if [ "$ref" = "$version" ]; then
             version=$(git show -s --format=%H | cut -c -12)
