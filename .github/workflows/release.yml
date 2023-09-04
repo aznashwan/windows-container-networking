@@ -7,7 +7,7 @@ on:
 
 name: Release
 
-env:
+vars:
   GO_VERSION: "1.21.0"
   BINARY_ARTIFACT_NAME: "windows-cni-binaries"
   RELEASE_NOTES_ARTIFACT_NAME: "windows-cni-release-notes"
@@ -22,8 +22,8 @@ jobs:
 
     outputs:
       version: ${{ steps.getrelease.outputs.version }}
-      binaries_artifact: ${{ env.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
-      release_notes_artifact: ${{ env.RELEASE_NOTES_ARTIFACT_NAME}}-${{ steps.getrelease.outputs.version }}
+      binaries_artifact: ${{ vars.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
+      release_notes_artifact: ${{ vars.RELEASE_NOTES_ARTIFACT_NAME}}-${{ steps.getrelease.outputs.version }}
 
     steps:
       - name: Checkout code
@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: ${{ vars.GO_VERSION }}
 
       - name: Make binary release
         shell: bash
@@ -75,13 +75,13 @@ jobs:
       - name: Upload release notes
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.RELEASE_NOTES_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
+          name: ${{ vars.RELEASE_NOTES_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
           path: src/github.com/Microsoft/windows-container-networking/release-notes.md
 
       - name: Upload binary release
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
+          name: ${{ vars.BINARY_ARTIFACT_NAME }}-${{ steps.getrelease.outputs.version }}
           path: src/github.com/Microsoft/windows-container-networking/release/*
 
   ci:
@@ -96,7 +96,7 @@ jobs:
     # uses: "Microsoft/windows-container-networking/.github/workflows/ci.yml@master"
     uses: "aznashwan/windows-container-networking/.github/workflows/ci.yml@main"
     with:
-      GO_VERSION: ${{ env.GO_VERSION }}
+      GO_VERSION: ${{ vars.GO_VERSION }}
 
   release:
     name: Create CNI Binaries Release
