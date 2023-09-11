@@ -398,11 +398,11 @@ func getOrCreateNetwork(
 	nwConfig, err := plugin.nm.GetNetworkByName(cniConfig.Name)
 	if err != nil {
 		// Network does not exist.
-		logrus.Infof("[cni-net] Creating network.")
+		logrus.Infof("[cni-net] Creating network with info: %#v", networkInfo)
 
 		nwConfig, err = plugin.nm.CreateNetwork(networkInfo)
 		if err != nil {
-			logrus.Errorf("[cni-net] Failed to create network, err:%v.", err)
+			logrus.Errorf("[cni-net] Failed to create network, err: %v.", err)
 			return nil, err
 		}
 

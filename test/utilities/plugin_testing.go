@@ -46,7 +46,7 @@ func (pt *PluginUnitTest) Create(netJson []byte, network *hcn.HostComputeNetwork
 }
 
 func (pt *PluginUnitTest) Setup(t *testing.T) error {
-	t.Logf("Setup for Network Plugin of type: %v ...", string(pt.Network.Type))
+	t.Logf("Setup for Network Plugin of type: %q ...", string(pt.Network.Type))
 	t.Logf("[DEBUG] Using Host IP: [%s]", pt.HostIp.String())
 	var err error
 	pt.Network, err = pt.Network.Create()
@@ -58,7 +58,7 @@ func (pt *PluginUnitTest) Setup(t *testing.T) error {
 	if pt.NeedGW {
 		conf := cni.NetworkConfig{}
 		if err := json.Unmarshal(pt.NetConfJson, &conf); err != nil {
-			return fmt.Errorf("Error unmarshalling JSON config: %s", err)
+			return fmt.Errorf("Error unmarshalling JSON config: %v", err)
 		}
 
 		if pt.DualStack {
@@ -79,10 +79,10 @@ func (pt *PluginUnitTest) Setup(t *testing.T) error {
 }
 
 func (pt *PluginUnitTest) Teardown(t *testing.T) error {
-	t.Logf("Teardown for Network Plugin of type :%v ...", string(pt.Network.Type))
+	t.Logf("Teardown for Network Plugin of type: %q ...", string(pt.Network.Type))
 	err := pt.Network.Delete()
 	if err != nil {
-		t.Errorf("Error while deleting test network:  %v ", err)
+		t.Errorf("Error while deleting test network: %#v ", err)
 		return err
 	}
 
@@ -98,16 +98,16 @@ func (pt *PluginUnitTest) addCase(t *testing.T, ci *ContainerInfo) error {
 	var err error
 	epName := ci.ContainerId + "_" + pt.Network.Name
 	if err := AddCase(pt.CniCmdArgs); err != nil {
-		return fmt.Errorf("Failed to add test case for cmd args %v: %s", pt.CniCmdArgs, err)
+		return fmt.Errorf("Failed to add test case: %v", err)
 	}
 	ci.Namespace, err = hcn.GetNamespaceByID(ci.Namespace.Id)
 	if err != nil {
-		t.Errorf("Error while getting namespace with ID \"%v\" : %v", ci.Namespace.Id, err)
+		t.Errorf("Error while getting namespace with ID %q: %v", ci.Namespace.Id, err)
 		return err
 	}
 	ci.Endpoint, err = hcn.GetEndpointByName(epName)
 	if err != nil {
-		t.Errorf("Error while getting endpoint \"%v\" : %v", epName, err)
+		t.Errorf("Error while getting endpoint %q: %v", epName, err)
 		return err
 	}
 	return nil
@@ -117,24 +117,24 @@ func (pt *PluginUnitTest) delCase(t *testing.T, ci *ContainerInfo) error {
 	var err error
 	epName := ci.ContainerId + "_" + pt.Network.Name
 	if err := DelCase(pt.CniCmdArgs); err != nil {
-		return fmt.Errorf("Failed to delete test case for cmd args %v: %s", pt.CniCmdArgs, err)
+		return fmt.Errorf("Failed to delete test case for endpoint %q: %v", epName, err)
 	}
 
 	ci.Namespace, err = hcn.GetNamespaceByID(ci.Namespace.Id)
 	if err != nil {
-		t.Errorf("Error while getting namespace with ID \"%v\" : %v", ci.Namespace.Id, err)
+		t.Errorf("Error while getting namespace with ID %q: %v", ci.Namespace.Id, err)
 		return err
 	}
 
 	_, err = hcn.GetEndpointByName(epName)
 	if hcn.IsNotFoundError(err) {
 		return nil
-	} else if err != nil {
-		t.Errorf("Error endpoint was not deleted properly, endpoint \"%v\" : %v", epName, err)
+	} else if err == nil {
+		t.Errorf("Error: endpoint %q was not deleted properly: %v", epName, err)
 		return err
 	} else {
-		t.Errorf("Failed to delete endpoint %v", epName)
-		return fmt.Errorf("Failed to delete endpoint %v", epName)
+		t.Errorf("Failed to delete endpoint %q: %v", epName, err)
+		return fmt.Errorf("Failed to delete endpoint %q: %v", epName, err)
 	}
 }
 
@@ -230,8 +230,8 @@ func (pt *PluginUnitTest) RunDelTest(t *testing.T, ci *ContainerInfo) error {
 }
 
 func (pt *PluginUnitTest) RunUnitTest(t *testing.T) {
-	t.Logf("Running Unit Test for case: %v", pt.CniCmdArgs)
-	cid := fmt.Sprintf("%vTestUnitContainer", string(pt.Network.Type))
+	cid := fmt.Sprintf("%sTestUnitContainer", string(pt.Network.Type))
+	t.Logf("Running Unit Test with container ID %q", cid)
 	imageName := ImageNano
 	if pt.ImageToUse != "" {
 		imageName = pt.ImageToUse
@@ -241,23 +241,23 @@ func (pt *PluginUnitTest) RunUnitTest(t *testing.T) {
 		Image:       imageName,
 	}
 	if err := ct.Setup(t); err != nil {
-		t.Errorf("Failed to set up unit test case for %v: %s", pt.CniCmdArgs, err)
+		t.Errorf("Failed to set up unit test case for container %q: %v", cid, err)
 	}
 	defer func() {
 		if err := ct.Teardown(t); err != nil {
-			t.Logf("WARN: failed to tear down unit case for %v: %s", pt.CniCmdArgs, err)
+			t.Logf("WARN: failed to tear down unit case for container %q: %#s", cid, err)
 		}
 	}()
 
 	if err := pt.RunAddTest(t, ct); err != nil {
-		t.Errorf("Failed to run ADD test for %v: %s", pt.CniCmdArgs, err)
+		t.Errorf("Failed to run ADD test for container %q: %v", cid, err)
 	}
 
 	if err := pt.RunDelTest(t, ct); err != nil {
-		t.Errorf("Failed to run DEL test for %v: %s", pt.CniCmdArgs, err)
+		t.Errorf("Failed to run DEL test for container %q: %v", cid, err)
 	}
 
-	t.Logf("End Unit Test for case: %v", pt.CniCmdArgs)
+	t.Logf("End Unit Test case with container ID %q", cid)
 }
 
 func (pt *PluginUnitTest) RunBasicConnectivityTest(t *testing.T, numContainers int) {
@@ -268,18 +268,19 @@ func (pt *PluginUnitTest) RunBasicConnectivityTest(t *testing.T, numContainers i
 	}
 	ctList := []*ContainerInfo{}
 	for i := 0; i < numContainers; i++ {
-		cid := fmt.Sprintf("%vTestContainer_%d", string(pt.Network.Type), i)
+		cid := fmt.Sprintf("%sTestContainer_%d", string(pt.Network.Type), i)
 		ct := &ContainerInfo{
 			ContainerId: cid,
 			Image:       imageName,
 		}
+		t.Logf("Setting up container with ID %q for basic connectiviry test.", cid)
 		if err := ct.Setup(t); err != nil {
-			t.Errorf("Failed to set up basic connectivity test case for %v: %s", pt.CniCmdArgs, err)
+			t.Errorf("Failed to set up container %q for basic connectivity test: %v", cid, err)
 		}
 
 		err := pt.RunAddTest(t, ct)
 		if err != nil {
-			t.Errorf("Failed Add Command: %v", err)
+			t.Errorf("Failed to ADD for container with ID %q for basic connectivity test: %v", cid, err)
 		}
 		ctList = append(ctList, ct)
 	}
@@ -308,7 +309,7 @@ func (pt *PluginUnitTest) RunBasicConnectivityTest(t *testing.T, numContainers i
 		}
 
 		if err != nil {
-			t.Errorf("Failed Container Connectivity: %v", err)
+			t.Errorf("Failed Container Connectivity test for container ID %q: %v", ctx.ContainerId, err)
 		}
 
 	}
@@ -322,7 +323,7 @@ func (pt *PluginUnitTest) RunBasicConnectivityTest(t *testing.T, numContainers i
 
 	for _, ct := range ctList {
 		if err := ct.Teardown(t); err != nil {
-			t.Errorf("Failed to tear down basic connectivity case for %v: %s", pt.CniCmdArgs, err)
+			t.Errorf("Failed to tear down basic connectivity test setup for container %q: %v", ct.ContainerId, err)
 		}
 	}
 

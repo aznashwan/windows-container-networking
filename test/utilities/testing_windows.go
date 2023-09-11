@@ -142,7 +142,7 @@ func AddCase(args cniSkel.CmdArgs) error {
 	}
 
 	if err := netPlugin.Add(&args); err != nil {
-		return fmt.Errorf("Failed to add args %v to net plugin %v: %s", args, netPlugin, err)
+		return fmt.Errorf("Failed to add args %#v to net plugin %#v: %#v", args, netPlugin, err)
 	}
 	netPlugin.Stop()
 
@@ -164,7 +164,7 @@ func DelCase(args cniSkel.CmdArgs) error {
 	}
 
 	if err := netPlugin.Delete(&args); err != nil {
-		return fmt.Errorf("Failed to delete test case with args %v: %s", args, err)
+		return fmt.Errorf("Failed to delete test case with args %#v: %#v", args, err)
 	}
 	netPlugin.Stop()
 
