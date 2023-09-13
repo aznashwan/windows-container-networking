@@ -98,7 +98,6 @@ func CreateNetworkConf(cniVersion string, name string, pluginType string,
 		DNS:            *dns,
 		AdditionalArgs: addArgs,
 	}
-
 	return &netConf
 }
 

@@ -14,6 +14,28 @@ import (
 
 const Interface = "Ethernet"
 
+// Struct wrapping cniSkel.CmdArgs with printable StdinData.
+type printableCniSkelCmdArgs struct {
+	ContainerID string
+	Netns       string
+	IfName      string
+	Args        string
+	Path        string
+	StdinData   string
+}
+
+func formatCniSkelArgs(args cniSkel.CmdArgs) string {
+	val := printableCniSkelCmdArgs{
+		ContainerID: args.ContainerID,
+		Netns:       args.Netns,
+		IfName:      args.IfName,
+		Args:        args.Args,
+		Path:        args.Path,
+		StdinData:   string(args.StdinData),
+	}
+	return fmt.Sprintf("%#v", val)
+}
+
 func GetDefaultInterface(getipv6 bool) (*net.Interface, *net.IP, *net.IP, error) {
 	var foundv4 bool
 	var foundv6 bool
@@ -142,7 +164,7 @@ func AddCase(args cniSkel.CmdArgs) error {
 	}
 
 	if err := netPlugin.Add(&args); err != nil {
-		return fmt.Errorf("Failed to add args %#v to net plugin %#v: %#v", args, netPlugin, err)
+		return fmt.Errorf("Error adding test case to net plugin %#v: %s. Error: %v", netPlugin, formatCniSkelArgs(args), err)
 	}
 	netPlugin.Stop()
 
