@@ -35,7 +35,6 @@ func CreateOverlayTestNetwork() *hcn.HostComputeNetwork {
 }
 
 func TestOverlayCmdAdd(t *testing.T) {
-	t.Skip("Overlay test is disabled for now.")
 	testDualStack = (os.Getenv("TestDualStack") == "1")
 	imageToUse = os.Getenv("ImageToUse")
 	testNetwork := CreateOverlayTestNetwork()
