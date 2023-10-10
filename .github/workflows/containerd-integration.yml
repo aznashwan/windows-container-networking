@@ -1,0 +1,184 @@
+# This workflow sets up Containerd with all supported plugins and runs the CRI
+# integration suite on all supported Windows version.
+
+name: Containerd Integration
+on:
+  workflow_dispatch:
+  # When added to a merge queue.
+  # See https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue#triggering-merge-group-checks-with-github-actions
+  merge_group:
+  pull_request:
+    branches: ['main', 'release/**']
+
+env:
+  GO_VERSION: "1.21.1"
+  CNI_BASE_DIR: "C:\\Program Files\\containerd\\cni"
+
+  CONTAINERD_REPO: "containerd/containerd"
+  CONTAINERD_TAG: "1.7"
+
+  CRICTL_REPO: "kubernetes-sigs/cri-tools"
+  CRICTL_TAG: "v1.26.0"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2019, windows-2022]
+        plugin: [nat, sdnbridge, sdnoverlay]
+
+    runs-on: "${{ matrix.os }}"
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: src/github.com/microsoft/windows-container-networking
+
+    steps:
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Checkout Containerd
+        uses: actions/checkout@v3
+        with:
+          repository:  "${{ env.CONTAINERD_REPO }}"
+          path: src/github.com/containerd/containerd
+
+      - name: Checkout Plugins
+        uses: actions/checkout@v3
+        with:
+          path: src/github.com/microsoft/windows-container-networking
+
+      - name: Checkout CRI Tools
+        uses: actions/checkout@v3
+        with:
+          repository: kubernetes-sigs/cri-tools
+          path: src/github.com/kubernetes-sigs/cri-tools
+
+      - name: Set env
+        run: |
+          echo "GOPATH=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/src/github.com/containerd/containerd/bin" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/src/github.com/microsoft/windows-container-networking/out" >> $GITHUB_PATH
+          echo "${{ github.workspace }}/src/github.com/kubernetes-sigs/cri-tools/build/bin/windows/amd64" >> $GITHUB_PATH
+
+      - name: Install Containerd Prereqs
+        run: script/setup/install-dev-tools
+        working-directory: src/github.com/containerd/containerd
+
+      # NOTE(aznashwan): starting with Golang 1.21, the windows-2019 GitHub runner's
+      # builtin MinGW version leads to DLL loading errors during runtime.
+      - name: Upgrade MinGW on Windows 2019
+        if: matrix.os == 'windows-2019'
+        run: |
+          choco upgrade mingw --version=12.2.0.3042023
+
+      - name: Containerd Binaries
+        env:
+          CGO_ENABLED: 1
+        run: mingw32-make.exe binaries
+        working-directory: src/github.com/containerd/containerd
+
+      - name: CRI Binaries
+        env:
+          CGO_ENABLED: 1
+        run: |
+          mingw32-make.exe critest
+          mingw32-make.exe crictl
+        working-directory: src/github.com/kubernetes-sigs/cri-tools
+
+      - name: Plugin Binaries
+        env:
+          CGO_ENABLED: 1
+        run: |
+          mingw32-make.exe all
+          mkdir -p "${{ env.CNI_BASE_DIR }}\\bin"
+          install -D -m 755 "out/${{ matrix.plugin }}.exe" "${{ env.CNI_BASE_DIR }}\\bin"
+
+      - name: Define Test Image Config
+        env:
+          TEST_IMAGE_LIST: ${{ github.workspace }}/repolist.toml
+          CRI_TEST_IMAGES: ${{ github.workspace }}/cri-test-images.yaml
+          BUSYBOX_TESTING_IMAGE_REF: "registry.k8s.io/e2e-test-images/busybox:1.29-2"
+          RESOURCE_CONSUMER_TESTING_IMAGE_REF: "registry.k8s.io/e2e-test-images/resource-consumer:1.10"
+          WEBSERVER_TESTING_IMAGE_REF: "registry.k8s.io/e2e-test-images/nginx:1.14-2"
+        run: |
+          cat > "${{ env.TEST_IMAGE_LIST }}" << EOF
+          busybox = "${{ env.BUSYBOX_TESTING_IMAGE_REF }}"
+          ResourceConsumer = "${{ env.RESOURCE_CONSUMER_TESTING_IMAGE_REF }}"
+          EOF
+          cat > "${{ env.CRI_TEST_IMAGES }}" << EOF
+          defaultTestContainerImage: ${{ env.BUSYBOX_TESTING_IMAGE_REF }}
+          webServerTestImage: ${{ env.WEBSERVER_TESTING_IMAGE_REF }}
+          EOF
+
+      - name: Install Containerd Testing Prereqs
+        run: |
+          script/setup/install-gotestsum
+          script/setup/install-teststat
+        working-directory: src/github.com/containerd/containerd
+
+      # - name: Contained Unit Tests
+      #   env:
+      #     CGO_ENABLED: 1
+      #     GOTESTSUM_JUNITFILE: ${{github.workspace}}/test-unit-root.xml
+      #     GOTESTSUM_JSONFILE: ${{github.workspace}}/test-unit-root-gotest.json
+      #   run: mingw32-make.exe test root-test
+      # - run: if [ -f *-gotest.json ]; then echo '# Root Test' >> $GITHUB_STEP_SUMMARY; teststat -markdown *-gotest.json >> $GITHUB_STEP_SUMMARY; fi
+      #   if: always()
+      # - run: script/test/test2annotation.sh ${TESTFILE}
+      #   env:
+      #     TESTFILE: ${{github.workspace}}/test-unit-root-gotest.json
+      #   if: always()
+
+      - name: Containerd Integration Tests
+        env:
+          CGO_ENABLED: 1
+          GOTESTSUM_JUNITFILE: ${{github.workspace}}/test-integration-serial-junit.xml
+          GOTESTSUM_JSONFILE: ${{github.workspace}}/test-integration-serial-gotest.json
+          EXTRA_TESTFLAGS: "-timeout=20m"
+        run: |
+          mingw32-make.exe integration
+          script/test/test2annotation.sh ${GOTESTSUM_JSONFILE}
+        working-directory: src/github.com/containerd/containerd
+
+      - name: Containerd CRI Integration Test
+        env:
+          DISABLE_CRI_SANDBOXES: ${{ matrix.disable_cri_sandboxes }}
+          TEST_IMAGE_LIST: ${{github.workspace}}/repolist.toml
+        run: |
+          mingw32-make.exe cri-integration
+
+      - name: CRI Test Suite
+        env:
+          CRI_TEST_IMAGES: ${{ github.workspace }}/cri-test-images.yaml
+        shell: powershell
+        run: |
+          Start-Process -FilePath containerd.exe -NoNewWindow -RedirectStandardError true -PassThru
+          get-process | sls containerd
+          start-sleep 5
+          # This test is exceedingly flaky only on ws2022 so skip for now to keep CI happy.
+          # Info: https://github.com/containerd/containerd/issues/6652
+          if( '${{ matrix.os }}' -eq 'windows-2022' )
+          {
+            $skip = "-ginkgo.skip=runtime should support exec with tty=true and stdin=true"
+          }
+          critest.exe --runtime-endpoint=npipe://.//pipe//containerd-containerd --test-images-file='${{env.CRI_TEST_IMAGES}}' --report-dir='${{github.workspace}}/critestreport' $skip
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: TestResults ${{ matrix.os }}
+          path: |
+            ${{github.workspace}}/*-junit.xml
+            ${{github.workspace}}/*-gotest.json
+            ${{github.workspace}}/report/*.log
