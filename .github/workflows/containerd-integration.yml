@@ -100,9 +100,25 @@ jobs:
         env:
           CGO_ENABLED: 1
         run: |
-          mingw32-make.exe all
+          mingw32-make.exe '${{  matrix.plugin }}'
           mkdir -p "${{ env.CNI_BASE_DIR }}\\bin"
-          install -D -m 755 "out/${{ matrix.plugin }}.exe" "${{ env.CNI_BASE_DIR }}\\bin"
+
+          # HACK(aznashwan): currently the plugins blindly pass the 'type' field to HCN:
+          case "${{ matrix.plugin }}" in
+            'sdnbridge')
+              install -D -m 755 "out/${{ matrix.plugin }}.exe" "${{ env.CNI_BASE_DIR }}\\bin\\L2Bridge.exe"
+              ;;
+            'sdnoverlay')
+              install -D -m 755 "out/${{ matrix.plugin }}.exe" "${{ env.CNI_BASE_DIR }}\\bin\\Overlay.exe"
+              ;;
+            'nat')
+              install -D -m 755 "out/${{ matrix.plugin }}.exe" "${{ env.CNI_BASE_DIR }}\\bin\\nat.exe"
+              ;;
+            *)
+              echo "Unknown plugin: '${{ matrix.plugin }}'"
+              exit 1
+              ;;
+          esac
 
       - name: Define Test Image Config
         env:

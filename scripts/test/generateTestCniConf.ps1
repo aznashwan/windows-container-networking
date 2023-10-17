@@ -63,12 +63,13 @@ $TestSubnetGatewayPlaceholder = "__ARG_TEST_SUBNET_GATEWAY__"
 $HostSubnetPlaceholder = "__ARG_HOST_SUBNET__"
 
 $CniConfNetNamePlaceholder = "__ARG_CNI_NET_NAME__"
+$CniConfNetTypePlaceholder = "__ARG_CNI_NET_TYPE__"
 $CniConfVersionPlaceholder = "__ARG_CNI_VERSION__"
 $MasterInterfacePlaceholder = "__ARG_MASTER_IF__"
 
 $NATConfTemplate = @"
 {
-    "type": "nat",
+    "type": "$CniConfNetTypePlaceholder",
     "cniVersion": "$CniConfVersionPlaceholder",
     "name": "$CniConfNetNamePlaceholder",
     "master": "$MasterInterfacePlaceholder",
@@ -89,7 +90,7 @@ $NATConfTemplate = @"
 
 $SDNBridgeConfTemplate = @"
 {
-    "type": "sdnbridge",
+    "type": "$CniConfNetTypePlaceholder",
     "cniVersion": "$CniConfVersionPlaceholder",
     "name": "$CniConfNetNamePlaceholder",
     "master": "$MasterInterfacePlaceholder",
@@ -121,7 +122,7 @@ $SDNOverlayConfTemplate = @"
 {
     "cniVersion": "$CniConfVersionPlaceholder",
     "name": "$CniConfNetNamePlaceholder",
-    "type": "sdnoverlay",
+    "type": "$CniConfNetTypePlaceholder",
     "capabilities": {
         "portMappings": true,
         "dns": true
@@ -168,6 +169,12 @@ $PluginConfTemplateMap = @{
     $SDNOverlayPluginType = $SDNOverlayConfTemplate
 }
 
+$PluginTypeToBinaryMap = @{
+    $NATPluginType = "nat";
+    $SDNBridgePluginType = "L2Bridge";
+    $SDNOverlayPluginType = "Overlay"
+}
+
 function Get-HostNetwork {
     [CmdletBinding()]
     param (
@@ -198,9 +205,15 @@ function Render-Config {
         throw "Unsupported plugin type '$Type'. Supported types are: $($PluginConfTemplateMap.Keys)"
     }
 
+    $confCniType = $PluginTypeToBinaryMap[$Type]
+    if ($confCniType -eq $null) {
+        throw "Unsupported plugin binary type '$Type'. Supported types are: $($PluginTypeToBinaryMap.Keys)"
+    }
+
     $hostSubnet = Get-HostNetwork -HostInterfaceName "$HostInterfaceName"
     return $confTemplate.
         Replace($CniConfNetNamePlaceholder, "$netName").
+        Replace($CniConfNetTypePlaceholder, "$confCniType").
         Replace($CniConfVersionPlaceholder, "$CniVersion").
         Replace($MasterInterfacePlaceholder, "$HostInterfaceName").
         Replace($TestSubnetAddrPlaceholder, "$TestSubnet").
