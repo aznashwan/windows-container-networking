@@ -393,6 +393,7 @@ func MakeTestStruct(
 
 	}
 	netJson, _ := json.Marshal(netConf)
+	t.Logf("Networking config JSON is: %s", string(netJson))
 	pt.NeedGW = needGW
 	pt.Create(netJson, testNetwork, epPolicies, dns.Search, dns.Nameservers, cid, hostIp, hostIpv6)
 	pt.DualStack = testDualStack
