@@ -140,6 +140,11 @@ jobs:
       #     TESTFILE: ${{github.workspace}}/test-unit-root-gotest.json
       #   if: always()
 
+      - name: Generate Testing CNI Config
+        shell: powershell
+        run: |
+          scripts/test/generateTestCniConf.ps1 -Type '${{ matrix.plugin }}' -OutDir '${{ env.CNI_BASE_DIR }}\\conf' -EnsureOutDirEmpty $true
+
       - name: Containerd Integration Tests
         env:
           CGO_ENABLED: 1
@@ -148,7 +153,7 @@ jobs:
           EXTRA_TESTFLAGS: "-timeout=20m"
         run: |
           mingw32-make.exe integration
-          script/test/test2annotation.sh ${GOTESTSUM_JSONFILE}
+          # script/test/test2annotation.sh ${GOTESTSUM_JSONFILE}
         working-directory: src/github.com/containerd/containerd
 
       - name: Containerd CRI Integration Test
@@ -157,6 +162,7 @@ jobs:
           TEST_IMAGE_LIST: ${{github.workspace}}/repolist.toml
         run: |
           mingw32-make.exe cri-integration
+        working-directory: src/github.com/containerd/containerd
 
       - name: CRI Test Suite
         env:
@@ -164,8 +170,8 @@ jobs:
         shell: powershell
         run: |
           Start-Process -FilePath containerd.exe -NoNewWindow -RedirectStandardError true -PassThru
-          get-process | sls containerd
-          start-sleep 5
+          Get-Process | sls containerd
+          Start-Sleep 5
           # This test is exceedingly flaky only on ws2022 so skip for now to keep CI happy.
           # Info: https://github.com/containerd/containerd/issues/6652
           if( '${{ matrix.os }}' -eq 'windows-2022' )
@@ -181,4 +187,4 @@ jobs:
           path: |
             ${{github.workspace}}/*-junit.xml
             ${{github.workspace}}/*-gotest.json
-            ${{github.workspace}}/report/*.log
+            ${{github.workspace}}/critestreport/*.log
