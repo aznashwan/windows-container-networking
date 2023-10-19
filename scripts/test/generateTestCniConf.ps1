@@ -7,7 +7,7 @@ USAGE: generateTestCniConf.ps1 `
     -Type nat/sdnbridge/sdnoverlay `
     -OutDir 'C:\Program Files\containerd\cni\conf' `
     -CniVersion [0.3.0]/1.0.0 `
-    -HostInterfaceName "Ethernet" `
+    -HostInterfaceNamePatternPatter "*Ethernet*" `
     -EnsureOutDirEmpty $false `
     -TestSubnet "10.4.1.0/24" `
     -TestGateway "10.4.1.2" `
@@ -49,7 +49,7 @@ param (
 
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
-    [System.String] $HostInterfaceName = "Ethernet"
+    [System.String] $HostInterfaceNamePattern = "*Ethernet*"
 )
 
 $NATPluginType = "nat"
@@ -180,10 +180,13 @@ function Get-HostNetwork {
     param (
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [System.String] $HostInterfaceName = "Ethernet"
+        [System.String] $HostInterfaceNamePattern = "*Ethernet*"
     )
 
-    $ifInfo = Get-NetIPAddress -InterfaceAlias "$HostInterfaceName" -AddressFamily IPv4
+    $ifInfo = (Get-NetIPAddress -InterfaceAlias "$HostInterfaceNamePattern" -AddressFamily IPv4)[0]
+    if ($ifInfo -eq $null) {
+        throw "Unable to find network interafce with IPv4 address with alias patter '$HostInterfaceNamePattern': $(Get-NetIPaddress)"
+    }
     return "$($ifInfo.IPAddress)/$($ifInfo.PrefixLength)"
 }
 
@@ -210,12 +213,12 @@ function Render-Config {
         throw "Unsupported plugin binary type '$Type'. Supported types are: $($PluginTypeToBinaryMap.Keys)"
     }
 
-    $hostSubnet = Get-HostNetwork -HostInterfaceName "$HostInterfaceName"
+    $hostSubnet = Get-HostNetwork -HostInterfaceNamePattern "$HostInterfaceNamePattern"
     return $confTemplate.
         Replace($CniConfNetNamePlaceholder, "$netName").
         Replace($CniConfNetTypePlaceholder, "$confCniType").
         Replace($CniConfVersionPlaceholder, "$CniVersion").
-        Replace($MasterInterfacePlaceholder, "$HostInterfaceName").
+        Replace($MasterInterfacePlaceholder, "$HostInterfaceNamePattern").
         Replace($TestSubnetAddrPlaceholder, "$TestSubnet").
         Replace($TestSubnetGatewayPlaceholder, "$TestGateway").
         Replace($TestDnsServerPlaceholder, "$TestDnsServer").

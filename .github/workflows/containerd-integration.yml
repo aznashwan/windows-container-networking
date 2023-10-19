@@ -159,13 +159,7 @@ jobs:
       - name: Generate Testing CNI Config
         shell: powershell
         run: |
-          Get-NetIPAddress -AddressFamily IPv4
-
-          $hostIf = "Ethernet"
-          if ("${{ matrix.os }}" -eq "windows-2022" ) {
-            $hostIf = 'vEthernet (Ethernet)'
-          }
-          scripts/test/generateTestCniConf.ps1 -Type '${{ matrix.plugin }}' -OutDir '${{ env.CNI_BASE_DIR }}\\conf' -EnsureOutDirEmpty $true
+          scripts/test/generateTestCniConf.ps1 -Type '${{ matrix.plugin }}' -OutDir '${{ env.CNI_BASE_DIR }}\\conf' -EnsureOutDirEmpty $true -HostInterfaceNamePattern '*Ethernet*'
 
       - name: Containerd Integration Tests
         env:
