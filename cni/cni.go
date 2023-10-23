@@ -66,7 +66,7 @@ type IpamConfig struct {
 // Defined as per https://github.com/containernetworking/cni/blob/master/SPEC.md
 type NetworkConfig struct {
 	CniVersion       string           `json:"cniVersion"`
-	Name             string           `json:"name"` // Name is the Network Name. We would also use this as the Type of HNS Network
+	Name             string           `json:"name"` // Name is the Network Name.
 	Type             string           `json:"type"` // As per SPEC, Type is Name of the Binary
 	Ipam             IpamConfig       `json:"ipam"`
 	DNS              cniTypes.DNS     `json:"dns"`
@@ -174,6 +174,12 @@ func ParseNetworkConfig(b []byte) (*NetworkConfig, error) {
 		return nil, err
 	}
 
+	hcnType, err := mapCniTypeToHcnType(config.Type)
+	if err != nil {
+		return nil, err
+	}
+	config.Type = string(hcnType)
+
 	return &config, nil
 }
 
@@ -243,10 +249,14 @@ func (config *NetworkConfig) GetNetworkInfo(podNamespace string) (ninfo *network
 		dnsSettings.Options = config.RuntimeConfig.DNS.Options
 	}
 
+	netType, err := mapCniTypeToHcnType(config.Type)
+	if err != nil {
+		return nil, err
+	}
 	ninfo = &network.NetworkInfo{
 		ID:            config.Name,
 		Name:          config.Name,
-		Type:          network.NetworkType(config.Type),
+		Type:          netType,
 		Subnets:       subnets,
 		InterfaceName: "",
 		DNS:           dnsSettings,
@@ -480,4 +490,31 @@ func GetInterface(endpoint *network.EndpointInfo) Interface {
 		MacAddress: endpoint.MacAddress,
 		Sandbox:    "",
 	}
+}
+
+// Maps the given CNI network config "type" field into the correct HNS network type.
+func mapCniTypeToHcnType(typeArg string) (hcn.NetworkType, error) {
+	cniTypeToHcnTypeMap := map[string]hcn.NetworkType{
+		"nat":        hcn.NAT,
+		"sdnbridge":  hcn.L2Bridge,
+		"sdnoverlay": hcn.Overlay,
+		// "l2tunnel": network.L2Tunnel,
+	}
+
+	var mappedType *hcn.NetworkType = nil
+	for binaryName, netType := range cniTypeToHcnTypeMap {
+		if typeArg == binaryName || typeArg == string(netType) {
+			mappedType = &netType
+			break
+		}
+	}
+
+	if mappedType == nil {
+		return hcn.NetworkType(""), fmt.Errorf("Unsupported CNI config 'type' %q. Options are the keys/values from: %v", typeArg, cniTypeToHcnTypeMap)
+	}
+	if string(*mappedType) != typeArg {
+		logrus.Warnf("Provided CNI config 'type' %q will be mapped to %q", typeArg, *mappedType)
+	}
+
+	return *mappedType, nil
 }
