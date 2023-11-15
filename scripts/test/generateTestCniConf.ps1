@@ -187,7 +187,8 @@ function Get-HostNetwork {
     if ($ifInfo -eq $null) {
         throw "Unable to find network interafce with IPv4 address with alias patter '$HostInterfaceNamePattern': $(Get-NetIPaddress)"
     }
-    return "$($ifInfo.IPAddress)/$($ifInfo.PrefixLength)"
+    # return "$($ifInfo.IPAddress)/$($ifInfo.PrefixLength)"
+    return $ifInfo
 }
 
 function Render-Config {
@@ -213,16 +214,17 @@ function Render-Config {
         throw "Unsupported plugin binary type '$Type'. Supported types are: $($PluginTypeToBinaryMap.Keys)"
     }
 
-    $hostSubnet = Get-HostNetwork -HostInterfaceNamePattern "$HostInterfaceNamePattern"
+    $hostIf = Get-HostNetwork -HostInterfaceNamePattern "$HostInterfaceNamePattern"
+    $hostSubnet = "$($hostIf.IPAddress)/$($hostIf.PrefixLength)"
     return $confTemplate.
         Replace($CniConfNetNamePlaceholder, "$netName").
         Replace($CniConfNetTypePlaceholder, "$confCniType").
         Replace($CniConfVersionPlaceholder, "$CniVersion").
-        Replace($MasterInterfacePlaceholder, "$HostInterfaceNamePattern").
+        Replace($MasterInterfacePlaceholder, $hostIf.InterfaceAlias).
         Replace($TestSubnetAddrPlaceholder, "$TestSubnet").
         Replace($TestSubnetGatewayPlaceholder, "$TestGateway").
         Replace($TestDnsServerPlaceholder, "$TestDnsServer").
-        Replace($HostSubnetPlaceholder, "$HostSubnet")
+        Replace($HostSubnetPlaceholder, "$hostSubnet")
 }
 
 if (Test-Path -Path "$OutDir") {
