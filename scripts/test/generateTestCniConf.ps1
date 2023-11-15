@@ -98,7 +98,7 @@ $SDNBridgeConfTemplate = @"
         "portMappings":  true,
         "dns":  true
     },
-    "ipam":  {
+    "ipam": {
         "subnet": "$TestSubnetAddrPlaceholder",
         "routes": [
             {
@@ -106,14 +106,38 @@ $SDNBridgeConfTemplate = @"
             }
         ]
     },
-    "dns":  {
+    "dns": {
         "Nameservers":  [
             "$TestDnsServerPlaceholder"
         ]
     },
+    "AdditionalArgs": [
+        {
+            "name": "EndpointPolicy",
+            "value": {
+                "Type": "OutBoundNAT",
+                "Settings": {
+                    "Exceptions": [
+                        "$HostSubnetPlaceholder"
+                    ]
+                }
+            }
+        },
+        {
+            "name": "EndpointPolicy",
+            "value": {
+                "Type": "SDNRoute",
+                "Settings": {
+                    "DestinationPrefix": "$HostSubnetPlaceholder",
+                    "NeedEncap": true
+                }
+            }
+        }
+    ],
     "optionalFlags":  {
-        "localRoutedPortMapping":  true,
-        "allowAclPortMapping":  true
+        "forceBridgeGateway": true,
+        "allowAclPortMapping": true,
+        "localRoutedPortMapping": true
     }
 }
 "@
