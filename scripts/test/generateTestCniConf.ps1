@@ -209,16 +209,16 @@ function Render-Config {
         throw "Unsupported plugin type '$Type'. Supported types are: $($PluginConfTemplateMap.Keys)"
     }
 
-    $confCniType = $PluginTypeToBinaryMap[$Type]
-    if ($confCniType -eq $null) {
-        throw "Unsupported plugin binary type '$Type'. Supported types are: $($PluginTypeToBinaryMap.Keys)"
-    }
+    # $confCniType = $PluginTypeToBinaryMap[$Type]
+    # if ($confCniType -eq $null) {
+    #     throw "Unsupported plugin binary type '$Type'. Supported types are: $($PluginTypeToBinaryMap.Keys)"
+    # }
 
     $hostIf = Get-HostNetwork -HostInterfaceNamePattern "$HostInterfaceNamePattern"
     $hostSubnet = "$($hostIf.IPAddress)/$($hostIf.PrefixLength)"
     return $confTemplate.
         Replace($CniConfNetNamePlaceholder, "$netName").
-        Replace($CniConfNetTypePlaceholder, "$confCniType").
+        Replace($CniConfNetTypePlaceholder, "$Type").
         Replace($CniConfVersionPlaceholder, "$CniVersion").
         Replace($MasterInterfacePlaceholder, $hostIf.InterfaceAlias).
         Replace($TestSubnetAddrPlaceholder, "$TestSubnet").
